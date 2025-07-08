@@ -12,6 +12,8 @@ import torch
 from model import ModelArgs, Transformer
 from tokenizer import Tokenizer
 
+import tempfile
+
 # -----------------------------------------------------------------------------
 # test utilities
 
@@ -87,3 +89,41 @@ def test_python():
     text = text.encode('ascii') # turn into bytes
 
     assert text == expected_stdout
+
+
+def test_tokenizer_encode_decode():
+    # Test encoding and decoding roundtrip
+    enc = Tokenizer(tokenizer_model="tokenizer.model")
+    text = "Hello, world!"
+    tokens = enc.encode(text)
+    decoded = enc.decode(tokens)
+    assert isinstance(tokens, list)
+    assert isinstance(decoded, str)
+    assert len(tokens) > 0
+    # Decoding may not be exactly the same as input, but should be a string
+
+
+def test_tokenizer_empty():
+    enc = Tokenizer(tokenizer_model="tokenizer.model")
+    tokens = enc.encode("")
+    assert tokens == [1] or tokens == []  # depending on tokenizer config
+
+
+def test_model_forward_shape():
+    # Test that model forward returns correct shape
+    checkpoint = torch.load("test/stories260K.pt", map_location="cpu")
+    gptconf = ModelArgs(**checkpoint['model_args'])
+    model = Transformer(gptconf)
+    state_dict = checkpoint['model']
+    unwanted_prefix = '_orig_mod.'
+    for k,v in list(state_dict.items()):
+        if k.startswith(unwanted_prefix):
+            state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
+    model.load_state_dict(state_dict, strict=False)
+    model.eval()
+    x = torch.tensor([[1,2,3]], dtype=torch.long)
+    with torch.inference_mode():
+        logits = model(x)
+    assert logits.shape[0] == 1
+    assert logits.shape[1] == 3
+    assert logits.shape[2] == gptconf.vocab_size

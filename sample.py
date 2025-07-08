@@ -9,6 +9,8 @@ from model import ModelArgs, Transformer
 from tokenizer import Tokenizer
 
 from tinystories import get_tokenizer_model_path
+import argparse
+import logging
 
 # -----------------------------------------------------------------------------
 checkpoint = 'out/ckpt.pt'
@@ -25,6 +27,42 @@ dtype = "float32"
 compile = False # use PyTorch 2.0 to compile the model to be faster
 exec(open('configurator.py').read()) # overrides from command line or config file
 # -----------------------------------------------------------------------------
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Sample from a trained model with PyTorch.")
+    parser.add_argument('--checkpoint', type=str, default='out/ckpt.pt', help='Path to model checkpoint')
+    parser.add_argument('--prompt', type=str, default='', help='Prompt string or FILE:filename')
+    parser.add_argument('--num_samples', type=int, default=1, help='Number of samples to draw')
+    parser.add_argument('--max_new_tokens', type=int, default=100, help='Number of tokens to generate')
+    parser.add_argument('--temperature', type=float, default=1.0, help='Sampling temperature')
+    parser.add_argument('--top_k', type=int, default=300, help='Top-k sampling')
+    parser.add_argument('--tokenizer', type=str, default='', help='Path to tokenizer model')
+    parser.add_argument('--seed', type=int, default=1337, help='Random seed')
+    parser.add_argument('--device', type=str, default=None, help='Device to use (cpu/cuda)')
+    parser.add_argument('--dtype', type=str, default='float32', choices=['float32','bfloat16','float16'], help='Data type')
+    parser.add_argument('--compile', action='store_true', help='Use torch.compile for speed')
+    parser.add_argument('--log-level', type=str, default='INFO', choices=['DEBUG','INFO','WARNING','ERROR','CRITICAL'], help='Logging level')
+    return parser.parse_args()
+
+if __name__ == "__main__":
+    args = parse_args()
+    checkpoint = args.checkpoint
+    start = args.prompt
+    num_samples = args.num_samples
+    max_new_tokens = args.max_new_tokens
+    temperature = args.temperature
+    top_k = args.top_k
+    tokenizer = args.tokenizer
+    seed = args.seed
+    device = args.device or ('cuda' if torch.cuda.is_available() else 'cpu')
+    dtype = args.dtype
+    compile = args.compile
+    exec(open('configurator.py').read()) # still allow config override
+    logging.basicConfig(level=getattr(logging, args.log_level.upper()), format='[%(levelname)s] %(message)s')
+    logger = logging.getLogger(__name__)
+else:
+    # fallback for legacy usage
+    pass
 
 torch.manual_seed(seed)
 torch.cuda.manual_seed(seed)
@@ -75,5 +113,5 @@ with torch.no_grad():
     with ctx:
         for k in range(num_samples):
             y = model.generate(x, max_new_tokens, temperature=temperature, top_k=top_k)
-            print(enc.decode(y[0].tolist()))
-            print('---------------')
+            logger.info(enc.decode(y[0].tolist()))
+            logger.info('---------------')

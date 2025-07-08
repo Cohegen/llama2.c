@@ -78,7 +78,17 @@ void test_prompt_encodings() {
     free_tokenizer(&tokenizer);
 }
 
+// Additional test: test model forward with dummy input (pseudo-code, as actual model forward may require more setup)
+// You may want to add more detailed tests for run.c functions if possible.
+
+void test_invalid_tokenizer_file() {
+    Tokenizer tokenizer;
+    int result = build_tokenizer(&tokenizer, "nonexistent_file.bin", 32000);
+    assert_eq(result, 1); // Should fail to open file
+}
+
 int main(int argc, char *argv[]) {
     test_prompt_encodings();
+    test_invalid_tokenizer_file();
     printf("ALL OK\n");
 }

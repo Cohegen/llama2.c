@@ -1,8 +1,36 @@
-## llama2.c
+# llama2.c
 
 <p align="center">
   <img src="assets/llama_cute.jpg" width="300" height="300" alt="Cute Llama">
 </p>
+
+<p align="center">
+  <a href="https://github.com/karpathy/llama2.c/actions"><img src="https://img.shields.io/github/workflow/status/karpathy/llama2.c/CI" alt="Build Status"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
+  <a href="https://colab.research.google.com/github/karpathy/llama2.c/blob/master/run.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"></a>
+</p>
+
+---
+
+## Table of Contents
+- [Overview](#overview)
+- [Features](#features)
+- [Quickstart](#quickstart)
+- [Directory Structure](#directory-structure)
+- [Usage](#usage)
+- [Meta's Llama 2 Models](#metas-llama-2-models)
+- [Quantization](#int8-quantization)
+- [Training](#training)
+- [Performance](#performance)
+- [Platforms](#platforms)
+- [Tests](#tests)
+- [Troubleshooting / FAQ](#troubleshooting--faq)
+- [Contributing](#contributing)
+- [License](#license)
+
+---
+
+## Overview
 
 Have you ever wanted to inference a baby [Llama 2](https://ai.meta.com/llama/) model in pure C? No? Well, now you can!
 
@@ -10,59 +38,82 @@ Train the Llama 2 LLM architecture in PyTorch then inference it with one simple 
 
 As the architecture is identical, you can also load and inference Meta's Llama 2 models. However, the current code only inferences models in fp32, so you will most likely not be able to productively load models larger than 7B. Work on model quantization is currently ongoing.
 
-Please note that this repo started recently as a fun weekend project: I took my earlier [nanoGPT](https://github.com/karpathy/nanoGPT), tuned it to implement the Llama-2 architecture instead of GPT-2, and the meat of it was writing the C inference engine in [run.c](run.c). So the project is young and moving quickly. Hat tip to the awesome [llama.cpp](https://github.com/ggerganov/llama.cpp) for inspiring this project. Compared to llama.cpp, I wanted something super simple, minimal, and educational so I chose to hard-code the Llama 2 architecture and just roll one inference file of pure C with no dependencies.
+---
 
-## feel the magic
+## Features
+- Minimal, hackable C inference engine (700 lines, no dependencies)
+- PyTorch-based training scripts
+- Support for custom and Meta Llama 2 models
+- Quantization (int8) for faster inference and smaller checkpoints
+- Example models and datasets (TinyStories)
+- Cross-platform: Windows, Linux, Mac
+- Actively maintained and community-driven
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/karpathy/llama2.c/blob/master/run.ipynb)
+---
 
-First, navigate to the folder where you keep your projects and clone this repository to this folder:
+## Quickstart
 
 ```bash
-git clone https://github.com/karpathy/llama2.c.git
+# Clone the repository
+$ git clone https://github.com/karpathy/llama2.c.git
+$ cd llama2.c
+
+# Download a pretrained model (15M params)
+$ wget https://huggingface.co/karpathy/tinyllamas/resolve/main/stories15M.bin
+
+# Compile and run
+$ make run
+$ ./run stories15M.bin
 ```
 
-Then, open the repository folder:
+For more details, see [Usage](#usage).
 
-```bash
-cd llama2.c
+---
+
+## Directory Structure
+
+```
+llama2.c/
+├── assets/              # Images and assets
+├── doc/                 # Documentation and guides
+├── run.c                # Main C inference engine
+├── runq.c               # Quantized C inference engine
+├── train.py             # PyTorch training script
+├── sample.py            # PyTorch inference script
+├── tokenizer.py         # Tokenizer utilities
+├── tinystories.py       # TinyStories dataset utilities
+├── export.py            # Model export utilities
+├── test_all.py          # Python tests
+├── test.c               # C tests
+├── Makefile             # Build instructions
+├── requirements.txt     # Python dependencies
+├── build_msvc.bat       # Windows build script
+├── README.md            # This file
+└── ...
 ```
 
-Now, let's just run a baby Llama 2 model in C. You need a model checkpoint. Download this 15M parameter model I trained on the [TinyStories](https://huggingface.co/datasets/roneneldan/TinyStories) dataset (~60MB download):
+---
 
+## Usage
+
+### Run a Pretrained Model
 ```bash
-wget https://huggingface.co/karpathy/tinyllamas/resolve/main/stories15M.bin
-```
-
-Compile and run the C code:
-
-```bash
-make run
 ./run stories15M.bin
 ```
 
-You'll see the text stream a sample. On my M1 MacBook Air this runs at ~110 tokens/s. See [performance](#performance) or the Makefile for compile flags that can significantly speed this up. We can also try a bit bigger 42M parameter model:
-
-```bash
-wget https://huggingface.co/karpathy/tinyllamas/resolve/main/stories42M.bin
-./run stories42M.bin
-```
-
-This still runs at interactive rates and samples more coherent and diverse stories:
-
-> Once upon a time, there was a little girl named Lily. She loved playing with her toys on top of her bed. One day, she decided to have a tea party with her stuffed animals. She poured some tea into a tiny teapot and put it on top of the teapot. Suddenly, her little brother Max came into the room and wanted to join the tea party too. Lily didn't want to share her tea and she told Max to go away. Max started to cry and Lily felt bad. She decided to yield her tea party to Max and they both shared the teapot. But then, something unexpected happened. The teapot started to shake and wiggle. Lily and Max were scared and didn't know what to do. Suddenly, the teapot started to fly towards the ceiling and landed on the top of the bed. Lily and Max were amazed and they hugged each other. They realized that sharing was much more fun than being selfish. From that day on, they always shared their tea parties and toys.
-
-You can also prompt the model with a prefix or a number of additional command line arguments, e.g. to sample at temperature 0.8 for 256 steps and with a prompt:
-
+### Run with Custom Prompt and Options
 ```bash
 ./run stories42M.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
 ```
 
-> One day, Lily met a Shoggoth. He was very shy, but was also very generous. Lily said “Hello Shoggy! Can I be your friend?” Shoggy was happy to have a friend and said “Yes, let’s explore the universe together!” So they set off on a journey to explore the universe. As they travelled, Shoggy was happy to explain to Lily about all the wonderful things in the universe. At the end of the day, Lily and Shoggy had gathered lots of wonderful things from the universe, and they both felt very proud. They promised to explore the universe as one big pair and to never stop being generous to each other.
+### Use Quantized Model
+```bash
+./runq stories42M_q80.bin
+```
 
-There is also an even better 110M param model available, see [models](#models).
+See the [Performance](#performance) and [Quantization](#int8-quantization) sections for more.
 
-Quick note on sampling, the recommendation for ~best results is to sample with `-t 1.0 -p 0.9`, i.e. temperature 1.0 (default) but also top-p sampling at 0.9 (default). Intuitively, top-p ensures that tokens with tiny probabilities do not get sampled, so we can't get "unlucky" during sampling, and we are less likely to go "off the rails" afterwards. More generally, to control the diversity of samples use either the temperature (i.e. vary `-t` between 0 and 1 and keep top-p off with `-p 0`) or the top-p value (i.e. vary `-p` between 0 and 1 and keep `-t 1`), but not both. Nice explainers on LLM sampling strategies include [this](https://peterchng.com/blog/2023/05/02/token-selection-strategies-top-k-top-p-and-temperature/), [this](https://docs.cohere.com/docs/controlling-generation-with-top-k-top-p) or [this](https://huggingface.co/blog/how-to-generate).
+---
 
 ## Meta's Llama 2 models
 
@@ -316,21 +367,42 @@ Figured it's possible to reuse my existing discord channel (that I use for my [z
 
 ## contributing
 
-A few words on this repo and the kinds of PRs that are likely to be accepted. What is the goal of this repo? Basically I think there will be a lot of interest in training or finetuning custom micro-LLMs (think ~100M - ~1B params, but let's say up to ~10B params) across a large diversity of applications, and deploying them in edge-adjacent environments (think MCUs, phones, web browsers, laptops, etc.). I'd like this repo to be the simplest, smallest, most hackable repo to support this workflow, both training and inference. In particular, this repo is not a complex framework with a 1000 knobs controlling inscrutible code across a nested directory structure of hundreds of files. Instead, I expect most applications will wish to create a fork of this repo and hack it to their specific needs and deployment platforms.
+We welcome contributions! To get started:
+1. Fork the repo and create your branch from `main`.
+2. Add your feature or bugfix with clear, concise code and comments.
+3. Add or update tests as needed.
+4. Open a pull request with a clear description of your changes.
 
-People who care about deployment efficiency above all else should look at [llama.cpp](https://github.com/ggerganov/llama.cpp). This repo still cares about efficiency, but not at the cost of simplicity, readability or portability. Basically, I expect that a lot of people come to this repo because the training code is 2 readable .py files and the inference code is 500 lines of C. So I'd like this to continue to be a kind of simplest "reference implementation" that can be easily hacked in a separate fork into whatever downstream application people are excited about. It shouldn't be full-featured. It shouldn't take 100 different options or settings. It shouldn't be the most efficient. A few examples:
+**Guidelines:**
+- Keep changes minimal, focused, and well-documented.
+- Prefer readability and hackability over complexity.
+- See the [unsorted todos](#unsorted-todos) for ideas.
 
-- someone re-ordered two loops to improve data locality for a small efficieny win => instant merge.
-- someone added the one line "pragma omp parallel for", which allows you to compile with OpenMP and dramatically speed up the code, or acts as just a comment if you don't compile it that way => instant merge.
-- bug fixes and touchups etc. => happy to merge
+For questions, join the [Discord](https://discord.gg/3zy8kqD9Cp) or open an issue.
 
-A few examples of PRs are that are not an excellent fit:
+---
 
-- adding more than several #ifdefs all over the place in code. If they are localized / few, might be okay.
-- adding a lot of code that is very specific to some specific platform (e.g. MCUs, or some special version of linux or processor). These may be a better fit for forks of the project, and I am very happy to maintain a list of these forks in section below.
-- adding hundreds of lines of code to run.c that are only active in specific scenarios or platforms.
+## Code Style & Linting
 
-If your candidate PRs have elements of these it doesn't mean they won't get merged, it just means they will make it into the gray territory. TLDR: I am eager to merge any mostly small, mostly localized, broadly applicable, clean changes that improve the efficiency and portability of the repo, while keep its hackability and readability. I appreciate all PRs seeking to help me improve the project, thank you! <3.
+- **Python:**
+  - Format code with [black](https://black.readthedocs.io/en/stable/):
+    ```bash
+    pip install black flake8
+    black .
+    flake8 .
+    ```
+- **C:**
+  - Format code with [clang-format](https://clang.llvm.org/docs/ClangFormat.html):
+    ```bash
+    clang-format -i *.c *.h
+    ```
+  - See `.clang-format` for style settings.
+
+---
+
+## License
+
+MIT
 
 ## notable forks
 

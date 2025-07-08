@@ -22,6 +22,7 @@ import time
 from contextlib import nullcontext
 from datetime import datetime
 from functools import partial
+import argparse
 
 import torch
 from model import Transformer, ModelArgs
@@ -30,6 +31,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 
 from tinystories import Task
 from export import model_export
+import logging
 
 # -----------------------------------------------------------------------------
 # I/O
@@ -341,3 +343,75 @@ while True:
 
 if ddp:
     destroy_process_group()
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Train a Llama2 model.")
+    parser.add_argument('--out_dir', type=str, default='out', help='Output directory')
+    parser.add_argument('--eval_interval', type=int, default=2000, help='Eval interval')
+    parser.add_argument('--log_interval', type=int, default=1, help='Log interval')
+    parser.add_argument('--eval_iters', type=int, default=100, help='Eval iters')
+    parser.add_argument('--eval_only', action='store_true', help='Eval only mode')
+    parser.add_argument('--always_save_checkpoint', action='store_true', help='Always save checkpoint')
+    parser.add_argument('--init_from', type=str, default='scratch', choices=['scratch','resume'], help='Init from')
+    parser.add_argument('--batch_size', type=int, default=128, help='Batch size')
+    parser.add_argument('--max_seq_len', type=int, default=256, help='Max sequence length')
+    parser.add_argument('--vocab_source', type=str, default='llama2', choices=['llama2','custom'], help='Vocab source')
+    parser.add_argument('--vocab_size', type=int, default=32000, help='Vocab size')
+    parser.add_argument('--dim', type=int, default=288, help='Model dimension')
+    parser.add_argument('--n_layers', type=int, default=6, help='Number of layers')
+    parser.add_argument('--n_heads', type=int, default=6, help='Number of heads')
+    parser.add_argument('--n_kv_heads', type=int, default=6, help='Number of key/value heads')
+    parser.add_argument('--multiple_of', type=int, default=32, help='Multiple of')
+    parser.add_argument('--dropout', type=float, default=0.0, help='Dropout')
+    parser.add_argument('--gradient_accumulation_steps', type=int, default=4, help='Gradient accumulation steps')
+    parser.add_argument('--learning_rate', type=float, default=5e-4, help='Learning rate')
+    parser.add_argument('--max_iters', type=int, default=100000, help='Max iters')
+    parser.add_argument('--weight_decay', type=float, default=1e-1, help='Weight decay')
+    parser.add_argument('--beta1', type=float, default=0.9, help='Adam beta1')
+    parser.add_argument('--beta2', type=float, default=0.95, help='Adam beta2')
+    parser.add_argument('--grad_clip', type=float, default=1.0, help='Gradient clip')
+    parser.add_argument('--decay_lr', action='store_true', help='Decay learning rate')
+    parser.add_argument('--warmup_iters', type=int, default=1000, help='Warmup iters')
+    parser.add_argument('--device', type=str, default='cuda', help='Device')
+    parser.add_argument('--dtype', type=str, default='bfloat16', choices=['float32','bfloat16','float16'], help='Data type')
+    parser.add_argument('--compile', action='store_true', help='Use torch.compile')
+    parser.add_argument('--log-level', type=str, default='INFO', choices=['DEBUG','INFO','WARNING','ERROR','CRITICAL'], help='Logging level')
+    return parser.parse_args()
+
+if __name__ == "__main__":
+    args = parse_args()
+    out_dir = args.out_dir
+    eval_interval = args.eval_interval
+    log_interval = args.log_interval
+    eval_iters = args.eval_iters
+    eval_only = args.eval_only
+    always_save_checkpoint = args.always_save_checkpoint
+    init_from = args.init_from
+    batch_size = args.batch_size
+    max_seq_len = args.max_seq_len
+    vocab_source = args.vocab_source
+    vocab_size = args.vocab_size
+    dim = args.dim
+    n_layers = args.n_layers
+    n_heads = args.n_heads
+    n_kv_heads = args.n_kv_heads
+    multiple_of = args.multiple_of
+    dropout = args.dropout
+    gradient_accumulation_steps = args.gradient_accumulation_steps
+    learning_rate = args.learning_rate
+    max_iters = args.max_iters
+    weight_decay = args.weight_decay
+    beta1 = args.beta1
+    beta2 = args.beta2
+    grad_clip = args.grad_clip
+    decay_lr = args.decay_lr
+    warmup_iters = args.warmup_iters
+    device = args.device
+    dtype = args.dtype
+    compile = args.compile
+    exec(open('configurator.py').read()) # still allow config override
+    logging.basicConfig(level=getattr(logging, args.log_level.upper()), format='[%(levelname)s] %(message)s')
+    logger = logging.getLogger(__name__)
+else:
+    # fallback for legacy usage
+    pass
